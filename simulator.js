@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-  console.log("simulator.js: Script started.");
   const frame = document.getElementById('frame');
   const iframe = document.getElementById('viewer');
   const urlInput = document.getElementById('urlInput');
@@ -39,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let capturer; // Declare capturer globally for CCapture.js
   let recordingAnimationFrameId;
   let isRecording = false;
+  let framesCaptured = 0; // New: Counter for captured frames
 
   // --- 1. Drag Logic ---
   let isDragging = false;
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  const handleStart = () => {
+  const handleStart = (isRecordingSession = false) => {
     const config = {
       speed: Number(speedInput.value),
       delay: Number(delayInput.value),
@@ -240,6 +240,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const dispatchStart = () => {
       chrome.tabs.getCurrent((tab) => {
         chrome.tabs.sendMessage(tab.id, { action: 'START', config });
+        if (isRecordingSession) {
+          recordingAnimationFrameId = requestAnimationFrame(captureFrame);
+        }
       });
     };
 
@@ -256,70 +259,83 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const handleStop = () => {
+    console.log("simulator.js: handleStop called.");
     updateButtonState(false);
     chrome.tabs.getCurrent((tab) => {
       chrome.tabs.sendMessage(tab.id, { action: 'STOP' });
     });
   };
 
+  const captureFrame = () => {
+    console.log("simulator.js: captureFrame called.");
+    chrome.tabs.getCurrent((tab) => {
+      chrome.tabs.sendMessage(tab.id, { action: 'CAPTURE_FRAME' }, (response) => {
+        console.log("simulator.js: Received response from content script:", response);
+        if (response && response.imageData) {
+          const img = new Image();
+          img.onload = () => {
+            console.log("simulator.js: Image loaded for capture.");
+            if (img.width === 0 || img.height === 0) {
+              if (isRecording) {
+                recordingAnimationFrameId = requestAnimationFrame(captureFrame);
+              }
+              return;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            
+            console.log("simulator.js: About to capture frame.");
+            capturer.capture(canvas); // Use capturer.capture
+            framesCaptured++; // New: Increment frame counter
+            console.log("simulator.js: Frame captured. Total frames:", framesCaptured);
+            if (isRecording) {
+              recordingAnimationFrameId = requestAnimationFrame(captureFrame);
+            }
+          };
+          img.onerror = (error) => {
+            console.error("simulator.js: Image failed to load for capture:", error);
+            if (isRecording) { 
+              recordingAnimationFrameId = requestAnimationFrame(captureFrame);
+            }
+          };
+          img.src = response.imageData;
+        } else if (response && response.error) {
+          console.error("simulator.js: Received error from content script:", response.error);
+          handleStopRecording(); // Stop recording if content.js explicitly sent an error
+        } else {
+          console.error("simulator.js: Received unexpected or empty response from content script.");
+          handleStopRecording(); // Stop recording if no data or invalid response
+        }
+      });
+    });
+  };
+
   const handleStartRecording = () => {
+    console.log("simulator.js: handleStartRecording called.");
     isRecording = true;
+    framesCaptured = 0; // New: Reset frame counter
     updateButtonState(true); // Update UI to recording state
 
     // Initialize CCapture.js
+    console.log("simulator.js: Initializing CCapture.js");
     capturer = new CCapture({
       format: 'webm',
       framerate: 60,
       verbose: true
     });
     capturer.start();
-
-    const captureFrame = () => {
-      chrome.tabs.getCurrent((tab) => {
-        chrome.tabs.sendMessage(tab.id, { action: 'CAPTURE_FRAME' }, (response) => {
-          if (response && response.imageData) {
-            const img = new Image();
-            img.onload = () => {
-              if (img.width === 0 || img.height === 0) {
-                if (isRecording) { // Continue trying to capture frames if recording is active
-                  recordingAnimationFrameId = requestAnimationFrame(captureFrame);
-                }
-                return;
-              }
-
-              const canvas = document.createElement('canvas');
-              canvas.width = img.width;
-              canvas.height = img.height;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0);
-              
-              capturer.capture(canvas); // Use capturer.capture
-              if (isRecording) {
-                recordingAnimationFrameId = requestAnimationFrame(captureFrame);
-              }
-            };
-            img.onerror = (error) => {
-              if (isRecording) { // Continue trying to capture frames if recording is active
-                recordingAnimationFrameId = requestAnimationFrame(captureFrame);
-              }
-            };
-            img.src = response.imageData;
-          } else if (response && response.error) {
-            handleStopRecording(); // Stop recording if content.js explicitly sent an error
-          } else {
-            handleStopRecording(); // Stop recording if no data or invalid response
-          }
-        });
-      });
-    };
+    console.log("simulator.js: CCapture.js started.");
     
     // Start the scroll animation
-    handleStart();
-    // Start capturing frames
-    recordingAnimationFrameId = requestAnimationFrame(captureFrame);
+    handleStart(true);
   };
 
   const handleStopRecording = () => {
+    console.log("simulator.js: handleStopRecording called.");
     if (!isRecording) return;
     
     isRecording = false;
@@ -329,14 +345,23 @@ document.addEventListener('DOMContentLoaded', () => {
     handleStop(); // Stop the scroll animation
     updateButtonState(false); // Update UI to normal state
 
-    // Stop and save the video using CCapture.js
-    capturer.stop();
-    capturer.save(); // CCapture handles Blob creation and download
+    console.log("simulator.js: About to stop and save capture.");
+    // New: Only save if frames were captured
+    if (framesCaptured > 0) {
+      // Stop and save the video using CCapture.js
+      capturer.stop();
+      capturer.save(); // CCapture handles Blob creation and download
+      console.log("simulator.js: CCapture.js stopped and saved.");
+    } else {
+      alert("No frames were captured. Video not saved.");
+      console.log("simulator.js: No frames captured, video not saved.");
+    }
+    framesCaptured = 0; // New: Reset frame counter
   };
 
   // Bind Events
-  startBtn.addEventListener('click', handleStart);
-  miniPlayBtn.addEventListener('click', handleStart);
+  startBtn.addEventListener('click', () => handleStart(false));
+  miniPlayBtn.addEventListener('click', () => handleStart(false));
   
   stopBtn.addEventListener('click', handleStop);
   miniStopBtn.addEventListener('click', handleStop);

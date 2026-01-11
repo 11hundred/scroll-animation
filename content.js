@@ -1,6 +1,4 @@
 // --- Physics & State ---
-console.log("content.js: Script started.");
-
 let animationFrameId = null;
 let isScrolling = false;
 
@@ -145,20 +143,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       scrollX: window.scrollX,
       scrollY: window.scrollY
     }).then(canvas => {
-      console.log("content.js: html2canvas returned a canvas.");
+      console.log("content.js: html2canvas promise resolved.");
+      console.log("content.js: canvas dimensions:", canvas.width, canvas.height);
       if (canvas.width === 0 || canvas.height === 0) {
         console.warn("content.js: html2canvas produced a canvas with zero dimensions.");
         sendResponse({ error: "html2canvas produced an empty canvas." });
         return;
       }
       const imageData = canvas.toDataURL('image/webp', 1.0);
-      console.log("content.js: html2canvas captured canvas. Image data length:", imageData.length);
+      console.log("content.js: Sending response with imageData.");
       sendResponse({ imageData: imageData });
-      console.log("content.js: Sent response with imageData.");
     }).catch(error => {
-      console.error("content.js: html2canvas capture error in iframe:", error);
+      console.error("content.js: html2canvas promise rejected:", error);
       sendResponse({ error: error.message });
-      console.error("content.js: Sent error response.");
     });
     return true; // Indicate that sendResponse will be called asynchronously
   }
