@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { width: 320px; background: #171717; color: #e5e5e5; font-family: system-ui, sans-serif; padding: 16px; margin: 0; }
+    h1 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #a3a3a3; margin: 0 0 16px 0; border-bottom: 1px solid #404040; padding-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    
+    label { font-size: 10px; font-weight: bold; color: #737373; text-transform: uppercase; display: block; margin-bottom: 4px; }
+    input, select { width: 100%; background: #262626; border: 1px solid #404040; color: white; padding: 8px; border-radius: 6px; box-sizing: border-box; font-size: 12px; margin-bottom: 12px; }
+    input:focus, select:focus { outline: none; border-color: #3b82f6; }
+    
+    .row { display: flex; gap: 8px; }
+    .col { flex: 1; }
+    
+    button { width: 100%; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 12px; margin-bottom: 8px; }
+    
+    .btn-primary { background: linear-gradient(to right, #2563eb, #3b82f6); color: white; }
+    .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.1); }
+    .btn-secondary { background: #404040; color: #d4d4d4; }
+    .btn-secondary:hover { background: #525252; color: white; }
+    #stopBtn { background: #451a1a; color: #f87171; border: 1px solid #7f1d1d; display: none; }
+    
+    .jump-row { display: flex; gap: 4px; margin-bottom: 12px; }
+    .jump-btn { width: auto; padding: 0 10px; margin-bottom: 12px; }
+    hr { border: 0; border-top: 1px solid #404040; margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <h1><span>⚡</span> Simulator</h1>
+
+  <!-- The "Open in Simulator" button is injected here by JS -->
+
+  <label>Viewport Dimensions</label>
+  <select id="preset">
+    <option value="">Select Preset...</option>
+  </select>
+
+  <div class="row">
+    <div class="col"><input type="number" id="width" placeholder="W"></div>
+    <div class="col"><input type="number" id="height" placeholder="H"></div>
+    <div class="col" style="flex: 0 0 auto;">
+      <button id="resizeBtn" class="btn-secondary" style="padding: 8px 12px;">Resize</button>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="row">
+    <div class="col">
+      <label>Delay (s)</label>
+      <input type="number" id="delay" value="0.5" step="0.5" min="0">
+    </div>
+    <div class="col">
+      <label>Speed (1-50)</label>
+      <input type="number" id="speed" value="10" min="1" max="50">
+    </div>
+  </div>
+
+  <label>Easing Function</label>
+  <select id="easing">
+    <option>Linear</option>
+    <option>Ease In (Quad)</option>
+    <option>Ease Out (Quad)</option>
+    <option selected>Ease In Out (Quad)</option>
+    <option>Ease In Out (Sine)</option>
+  </select>
+
+  <label>Targets (Element IDs)</label>
+  <div class="jump-row">
+    <input type="text" id="startId" placeholder="Start ID (Optional)" style="margin:0">
+    <button id="jumpStart" class="btn-secondary jump-btn">Go</button>
+  </div>
+  <div class="jump-row">
+    <input type="text" id="endId" placeholder="End ID (Optional)" style="margin:0">
+    <button id="jumpEnd" class="btn-secondary jump-btn">Go</button>
+  </div>
+
+  <div style="margin-top: 8px;">
+    <button id="startBtn" class="btn-primary">START SEQUENCE</button>
+    <button id="stopBtn">STOP</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Viewport Scroll Simulator",
+  "version": "2.1",
+  "description": "Device simulator with auto-scroll physics and easing.",
+  "permissions": [
+    "activeTab", 
+    "scripting", 
+    "declarativeNetRequest", 
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Open Simulator"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "declarative_net_request": {
+    "rule_resources": [{
+      "id": "ruleset_1",
+      "enabled": true,
+      "path": "rules.json"
+    }]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "all_frames": true
+    }
+  ]
+}
