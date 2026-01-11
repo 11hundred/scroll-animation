@@ -1,4 +1,6 @@
 // --- Physics & State ---
+console.log("content.js: Script started.");
+
 let animationFrameId = null;
 let isScrolling = false;
 
@@ -127,5 +129,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     stopScroll();
   } else if (request.action === "JUMP") {
     jumpTo(request.targetId);
+  } else if (request.action === "CAPTURE_FRAME") {
+    console.log("content.js: Received CAPTURE_FRAME request.");
+    if (typeof html2canvas === 'undefined') {
+      console.error("content.js: html2canvas is not defined!");
+      sendResponse({ error: "html2canvas not loaded in iframe." });
+      return;
+    }
+    console.log("content.js: Calling html2canvas...");
+    html2canvas(document.body, {
+      allowTaint: true,
+      useCORS: true,
+      windowWidth: window.innerWidth,
+      windowHeight: window.innerHeight,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY
+    }).then(canvas => {
+      console.log("content.js: html2canvas returned a canvas.");
+      if (canvas.width === 0 || canvas.height === 0) {
+        console.warn("content.js: html2canvas produced a canvas with zero dimensions.");
+        sendResponse({ error: "html2canvas produced an empty canvas." });
+        return;
+      }
+      const imageData = canvas.toDataURL('image/webp', 1.0);
+      console.log("content.js: html2canvas captured canvas. Image data length:", imageData.length);
+      sendResponse({ imageData: imageData });
+      console.log("content.js: Sent response with imageData.");
+    }).catch(error => {
+      console.error("content.js: html2canvas capture error in iframe:", error);
+      sendResponse({ error: error.message });
+      console.error("content.js: Sent error response.");
+    });
+    return true; // Indicate that sendResponse will be called asynchronously
   }
 });

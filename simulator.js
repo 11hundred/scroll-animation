@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+  console.log("simulator.js: Script started.");
   const frame = document.getElementById('frame');
   const iframe = document.getElementById('viewer');
   const urlInput = document.getElementById('urlInput');
@@ -19,6 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Main Buttons
   const startBtn = document.getElementById('startBtn');
   const stopBtn = document.getElementById('stopBtn');
+  const recordBtn = document.getElementById('recordBtn');
+  const stopRecordBtn = document.getElementById('stopRecordBtn');
   
   // Mini Buttons (Header)
   const miniPlayBtn = document.getElementById('miniPlayBtn');
@@ -27,12 +30,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Inputs
   const speedInput = document.getElementById('speed');
   const delayInput = document.getElementById('delay');
-  const easingInput = document.getElementById('easing');
+  const easingInput = document.getElementById('easing'); // Corrected
   const startIdInput = document.getElementById('startId');
   const endIdInput = document.getElementById('endId');
 
   // State Tracking
   let currentFrameUrl = '';
+  let capturer; // Declare capturer globally for CCapture.js
+  let recordingAnimationFrameId;
+  let isRecording = false;
 
   // --- 1. Drag Logic ---
   let isDragging = false;
@@ -151,6 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Main Body Buttons
     startBtn.style.display = isPlaying ? 'none' : 'block';
     stopBtn.style.display = isPlaying ? 'block' : 'none';
+    recordBtn.style.display = isRecording ? 'none' : (isPlaying ? 'none' : 'block');
+    stopRecordBtn.style.display = isRecording ? 'block' : 'none';
 
     // Mini Header Buttons
     if (toolbar.classList.contains('collapsed')) {
@@ -163,27 +171,41 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   
   const updateButtonState = (isPlaying) => {
-    if (isPlaying) {
-      startBtn.style.display = 'none';
-      stopBtn.style.display = 'block';
-      miniPlayBtn.style.setProperty('display', 'none', 'important');
-      miniStopBtn.style.setProperty('display', 'block', 'important');
+    // Regular play/stop buttons
+    startBtn.style.display = isPlaying ? 'none' : 'block';
+    stopBtn.style.display = isPlaying ? 'block' : 'none';
+
+    // Mini play/stop buttons
+    if (toolbar.classList.contains('collapsed')) {
+       miniPlayBtn.style.display = isPlaying ? 'none' : 'block';
+       miniStopBtn.style.display = isPlaying ? 'block' : 'none';
     } else {
-      startBtn.style.display = 'block';
-      stopBtn.style.display = 'none';
-      miniPlayBtn.style.setProperty('display', 'block', 'important');
-      miniStopBtn.style.setProperty('display', 'none', 'important');
+       miniPlayBtn.style.display = ''; 
+       miniStopBtn.style.display = '';
+    }
+
+    // Recording buttons
+    if (isRecording) {
+      recordBtn.style.display = 'none';
+      stopRecordBtn.style.display = 'block';
+      startBtn.style.display = 'none'; // Hide play button when recording
+    } else {
+      recordBtn.style.display = 'block';
+      stopRecordBtn.style.display = 'none';
     }
   };
 
   // Listen for messages from content.js (SCROLL_COMPLETE, URL_CHANGED)
   chrome.runtime.onMessage.addListener((message, sender) => {
-    chrome.tabs.getCurrent((currentTab) => {
+    chrome.tabs.getCurrent((tab) => {
        // Ensure the message is from our current tab context
-       if (!sender.tab || sender.tab.id !== currentTab.id) return;
+       if (!sender.tab || sender.tab.id !== tab.id) return; // Use tab.id for currentTab
 
        if (message.action === "SCROLL_COMPLETE") {
           updateButtonState(false);
+          if (isRecording) {
+            handleStopRecording();
+          }
        }
        
        if (message.action === "URL_CHANGED") {
@@ -240,12 +262,87 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  const handleStartRecording = () => {
+    isRecording = true;
+    updateButtonState(true); // Update UI to recording state
+
+    // Initialize CCapture.js
+    capturer = new CCapture({
+      format: 'webm',
+      framerate: 60,
+      verbose: true
+    });
+    capturer.start();
+
+    const captureFrame = () => {
+      chrome.tabs.getCurrent((tab) => {
+        chrome.tabs.sendMessage(tab.id, { action: 'CAPTURE_FRAME' }, (response) => {
+          if (response && response.imageData) {
+            const img = new Image();
+            img.onload = () => {
+              if (img.width === 0 || img.height === 0) {
+                if (isRecording) { // Continue trying to capture frames if recording is active
+                  recordingAnimationFrameId = requestAnimationFrame(captureFrame);
+                }
+                return;
+              }
+
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              
+              capturer.capture(canvas); // Use capturer.capture
+              if (isRecording) {
+                recordingAnimationFrameId = requestAnimationFrame(captureFrame);
+              }
+            };
+            img.onerror = (error) => {
+              if (isRecording) { // Continue trying to capture frames if recording is active
+                recordingAnimationFrameId = requestAnimationFrame(captureFrame);
+              }
+            };
+            img.src = response.imageData;
+          } else if (response && response.error) {
+            handleStopRecording(); // Stop recording if content.js explicitly sent an error
+          } else {
+            handleStopRecording(); // Stop recording if no data or invalid response
+          }
+        });
+      });
+    };
+    
+    // Start the scroll animation
+    handleStart();
+    // Start capturing frames
+    recordingAnimationFrameId = requestAnimationFrame(captureFrame);
+  };
+
+  const handleStopRecording = () => {
+    if (!isRecording) return;
+    
+    isRecording = false;
+    if (recordingAnimationFrameId) {
+      cancelAnimationFrame(recordingAnimationFrameId);
+    }
+    handleStop(); // Stop the scroll animation
+    updateButtonState(false); // Update UI to normal state
+
+    // Stop and save the video using CCapture.js
+    capturer.stop();
+    capturer.save(); // CCapture handles Blob creation and download
+  };
+
   // Bind Events
   startBtn.addEventListener('click', handleStart);
   miniPlayBtn.addEventListener('click', handleStart);
   
   stopBtn.addEventListener('click', handleStop);
   miniStopBtn.addEventListener('click', handleStop);
+
+  recordBtn.addEventListener('click', handleStartRecording);
+  stopRecordBtn.addEventListener('click', handleStopRecording);
 
   // Initialize button state
   updateButtonState(false);
