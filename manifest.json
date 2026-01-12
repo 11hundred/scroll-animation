@@ -7,7 +7,8 @@
     "activeTab", 
     "scripting", 
     "declarativeNetRequest", 
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "storage"
   ],
   "host_permissions": ["<all_urls>"],
   "action": {
@@ -28,6 +29,12 @@
       "matches": ["<all_urls>"],
       "js": ["content.js"],
       "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["simulator.html", "simulator.js"],
+      "matches": ["<all_urls>"]
     }
   ]
 }

@@ -13,14 +13,40 @@
       overflow: auto; z-index: 1;
     }
     
-    .device-frame { background: white; transition: all 0.3s ease; box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.7); }
-    iframe { width: 100%; height: 100%; border: none; display: block; }
+    .device-frame { 
+      background: white; 
+      transition: all 0.3s ease; 
+      box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.7); 
+      position: relative; 
+      overflow: hidden; 
+      display: flex; /* Make device-frame a flex container */
+    }
+    iframe { 
+      flex-grow: 1; /* Iframe takes up remaining space */
+      width: auto; /* Override 100% to work with flex-grow */
+      height: 100%; 
+      border: none; 
+      display: block; 
+    }
     
-    .badge { 
-      position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); 
-      background: #262626; padding: 6px 16px; border-radius: 20px; 
-      font-size: 12px; color: #a3a3a3; border: 1px solid #404040; 
-      pointer-events: none; z-index: 10;
+    /* Side Rail for Scroll Points */
+    .scroll-rail {
+      width: 20px;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 5;
+      flex-shrink: 0;
+      position: relative; /* Needed for absolute positioning of handle */
+    }
+
+    .scroll-handle {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%; /* Takes full width of outer rail */
+      height: 100%; /* Initial height, will be set by JS */
+      background: rgba(255, 255, 255, 0.3); /* Lighter background for handle */
+      cursor: pointer; /* Changed from ns-resize to pointer */
     }
 
     /* Floating Draggable Toolbar */
@@ -176,6 +202,20 @@
         </select>
       </div>
 
+      <hr style="border: 0; border-top: 1px solid #333; width: 100%; margin: 8px 0;">
+
+      <!-- Stopping Points -->
+      <div class="control-group">
+        <label style="width: 100%;">Stopping Points</label>
+        <button id="addStopByClickBtn" class="btn-primary" style="background: #3b82f6; width: auto; flex-shrink: 0;">Add by Click</button>
+      </div>
+      <div id="simulatorStopPointsList" style="margin-top: 4px;">
+        <!-- Stopping points will be added here dynamically -->
+        <p style="font-size: 12px; color: #a3a3a3; text-align: center;">No stopping points added yet.</p>
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid #333; width: 100%; margin: 8px 0;">
+      
       <!-- Target Controls -->
       <div class="control-group">
         <input type="text" id="startId" placeholder="Start Element ID (#)">
@@ -192,6 +232,9 @@
   <div class="canvas" id="canvas">
     <div class="device-frame" id="frame" style="width: 1280px; height: 800px;">
       <iframe id="viewer" src=""></iframe>
+      <div id="scrollRail" class="scroll-rail">
+        <div id="scrollHandle" class="scroll-handle"></div> <!-- NEW INNER RAIL -->
+      </div>
     </div>
     <div class="badge" id="scaleBadge">Scale: 100%</div>
   </div>

@@ -75,6 +75,21 @@
     <button id="jumpEnd" class="btn-secondary jump-btn">Go</button>
   </div>
 
+  <hr>
+
+  <h1><span>🛑</span> Stopping Points</h1>
+  <div class="row">
+    <div class="col"><input type="text" id="stopId" placeholder="Div ID"></div>
+    <div class="col"><input type="number" id="stopDelay" value="1" min="0" step="0.5" placeholder="Delay (s)"></div>
+    <div class="col" style="flex: 0 0 auto;">
+      <button id="addStopBtn" class="btn-secondary" style="padding: 8px 12px;">Add</button>
+    </div>
+  </div>
+  <div id="stopPointsList" style="margin-top: 8px;">
+    <!-- Stopping points will be added here dynamically -->
+  </div>
+
+
   <div style="margin-top: 8px;">
     <button id="startBtn" class="btn-primary">START SEQUENCE</button>
     <button id="stopBtn">STOP</button>

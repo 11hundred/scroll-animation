@@ -25,12 +25,87 @@ document.addEventListener('DOMContentLoaded', () => {
   // Insert at the very top of the body, before the first label
   document.body.insertBefore(openSimBtn, document.querySelector('label'));
 
+  // NEW: Stopping Points Logic
+  const stopIdInput = document.getElementById('stopId');
+  const stopDelayInput = document.getElementById('stopDelay');
+  const addStopBtn = document.getElementById('addStopBtn');
+  const stopPointsList = document.getElementById('stopPointsList');
+  let stoppingPoints = [];
+
+  const updateStopPointsList = () => {
+    stopPointsList.innerHTML = ''; // Clear current list
+    if (stoppingPoints.length === 0) {
+      stopPointsList.innerHTML = '<p style="font-size: 12px; color: #a3a3a3;">No stopping points added yet.</p>';
+      return;
+    }
+
+    stoppingPoints.forEach((point, index) => {
+      const pointDiv = document.createElement('div');
+      pointDiv.style.cssText = `
+        display: flex; justify-content: space-between; align-items: center;
+        background: #262626; border: 1px solid #404040; border-radius: 6px;
+        padding: 8px; margin-bottom: 4px; font-size: 12px;
+      `;
+      let label = '';
+      if (point.type === 'div') {
+        label = `ID: #${point.id}`;
+      } else if (point.type === 'coords') {
+        label = `Coords: (${point.x}, ${point.y})`; // Not used yet, but good for future
+      }
+      pointDiv.innerHTML = `
+        <span>${label} - Delay: ${point.delay}s</span>
+        <button data-index="${index}" class="remove-stop-btn" style="
+          background: #ef4444; color: white; border: none; padding: 4px 8px;
+          border-radius: 4px; cursor: pointer; font-size: 10px;
+        ">X</button>
+      `;
+      stopPointsList.appendChild(pointDiv);
+    });
+
+    // Add event listeners for remove buttons
+    document.querySelectorAll('.remove-stop-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        const indexToRemove = parseInt(e.target.dataset.index);
+        stoppingPoints.splice(indexToRemove, 1);
+        updateStopPointsList();
+      });
+    });
+  };
+
+  addStopBtn.addEventListener('click', () => {
+    const id = stopIdInput.value.trim();
+    const delay = Number(stopDelayInput.value);
+
+    if (!id) {
+      alert('Please enter a Div ID for the stopping point.');
+      return;
+    }
+    if (isNaN(delay) || delay < 0) {
+      alert('Please enter a valid non-negative number for delay.');
+      return;
+    }
+    if (stoppingPoints.length >= 5) {
+      alert('You can add a maximum of 5 stopping points.');
+      return;
+    }
+
+    stoppingPoints.push({ type: 'div', id: id, delay: delay });
+    stopIdInput.value = '';
+    stopDelayInput.value = '1'; // Reset to default
+    updateStopPointsList();
+  });
+
+  // Initial display
+  updateStopPointsList();
+
   openSimBtn.addEventListener('click', () => {
     // Get the current active tab's URL to pass it to the simulator
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
       const url = tabs[0]?.url || '';
       // Open the simulator.html (which must be in the extension folder)
-      chrome.tabs.create({ url: `simulator.html?url=${encodeURIComponent(url)}` });
+      // Serialize stoppingPoints and pass as URL parameter
+      const encodedStops = encodeURIComponent(JSON.stringify(stoppingPoints));
+      chrome.tabs.create({ url: `simulator.html?url=${encodeURIComponent(url)}&stops=${encodedStops}` });
     });
   });
 
